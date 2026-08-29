@@ -1,11 +1,15 @@
+# Ejection Seat
+
 <div align="center">
-  <br/>
-  <br/>
-  <img src="./assets/extension-icon.png" alt="Ejection Seat" width="100"/>
-  <h3>Ejection Seat</h3>
-  <p>Find the processes and files that may be preventing a disk from ejecting</p>
-  <br/>
-  <br/>
+  <a href="https://github.com/chrismessina">
+    <img src="https://img.shields.io/github/followers/chrismessina?label=Follow%20chrismessina&style=social" alt="Follow @chrismessina">
+  </a>
+  <a href="https://github.com/chrismessina/raycast-ejection-seat/stargazers">
+    <img src="https://img.shields.io/github/stars/chrismessina/raycast-ejection-seat?style=social" alt="Stars">
+  </a>
+  <a href="https://www.raycast.com/chrismessina/ejection-seat">
+    <img src="https://img.shields.io/badge/Raycast-Store-red.svg" alt="Ejection Seat on Raycast store.">
+  </a>
 </div>
 
 macOS refuses to eject a disk and tells you "one or more programs may be using it" — without naming a single one. Ejection Seat names them. Pick a mounted volume and it shows you which processes hold filesystem references on it, what kind of reference each one holds, and what to do about it.
