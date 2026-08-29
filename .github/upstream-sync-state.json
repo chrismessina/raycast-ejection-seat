@@ -1,0 +1,20 @@
+{
+  "upstream_commit": "78639ab147c3007ab13270a4bfa03a6c3ac41efa",
+  "synced_at": "2026-08-29T21:14:33Z",
+  "files": {
+    ".gitignore": "3547fccb1a21cce9b44d698c8f45b0f55ea004ac",
+    ".prettierrc": "fc0f5030683fa6196d08943646300755fce2f207",
+    "AGENTS.md": "714f945ed8fe8e1ef966a26763bb6d989498d538",
+    "CHANGELOG.md": "f4962ee4c1502cdb2575c9a92b70f32456db73a7",
+    "README.md": "7ae3c9b62d4eae1d02102fb7c0f9366d947cbf41",
+    "assets/extension-icon.png": "f3827abfb2f7a0a60a7f93cf3291e7881bf0c7f9",
+    "eslint.config.js": "543274e97eca65e51e691710591f6f5244117287",
+    "metadata/screenshot-01.png": "b766f5e58cd210c258226db8cb52ae805cd40085",
+    "metadata/screenshot-02.png": "5778764b11cf750201cc320cb01656fdd0ff859b",
+    "metadata/screenshot-03.png": "7450e9600a3ec68cc6221d0cc1ed92ed35af4602",
+    "package-lock.json": "39ceafc785e95cfb4e83bf0efc812f9a574b3a7c",
+    "package.json": "bb9690454343af031f4dfa937ea9a1c1f4b00397",
+    "src/find-ejection-blockers.tsx": "2cbbb8f20a0f2048c9b35e43d5a09d1b5612a051",
+    "tsconfig.json": "b053169f65b8c345a08d7c6e8ef3ec9f36b96077"
+  }
+}
