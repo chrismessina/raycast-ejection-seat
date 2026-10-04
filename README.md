@@ -5,7 +5,7 @@
 # Ejection Seat
 
 [![Raycast Store](https://img.shields.io/badge/Raycast-Store-FF6363?style=flat-square&logo=raycast&logoColor=white)](https://www.raycast.com/chrismessina/ejection-seat)
-[![Licence MIT](https://img.shields.io/badge/Licence-MIT-22C55E?style=flat-square)](LICENSE)
+[![License MIT](https://img.shields.io/badge/License-MIT-22C55E?style=flat-square)](LICENSE)
 [![Follow @chrismessina](https://img.shields.io/github/followers/chrismessina?label=Follow%20chrismessina&style=social)](https://github.com/chrismessina)
 [![Stars](https://img.shields.io/github/stars/chrismessina/raycast-ejection-seat?style=social)](https://github.com/chrismessina/raycast-ejection-seat/stargazers)
 
@@ -23,7 +23,9 @@ macOS refuses to eject a disk and tells you "one or more programs may be using i
 
 ## Features
 
-- **Every mounted volume, scanned up front** — see which disk is the problem before drilling in; each volume carries its own blocker count
+- **Every volume Finder shows, scanned up front** — see which disk is the problem before drilling in; each volume carries its own blocker count
+- **Only the volumes Finder shows** — system helper volumes mounted `nobrowse`, like `Recovery` and an external boot disk's `Preboot`, are left out of the list
+- **The whole disk, not just one volume** — `diskutil eject` ejects every volume on a physical disk, so blockers on volumes that share it (hidden ones included) are listed too, and the list marks volumes that eject together
 - **References ranked by how likely they are to be the cause** — a file open for writing outranks a memory-mapped executable, which outranks a process whose working directory merely sits on the volume
 - **Grouped into Likely Blockers, Other References, and System Services** — so a Spotlight worker never reads as the same kind of problem as an unsaved document
 - **Service-specific advice** — Quick Look, Spotlight indexing, `fseventsd`, `revisiond`, and Time Machine each get guidance that fits them, because "quit it" is the wrong answer for most of them
@@ -45,7 +47,7 @@ No configuration, no API keys, and no third-party dependencies beyond Raycast's 
 ## Quick Start
 
 1. Open Raycast and search for **"Find Ejection Blockers"**
-2. Pick the volume that won't eject — every mount under `/Volumes` is scanned as the list loads
+2. Pick the volume that won't eject — every volume Finder shows under `/Volumes` is scanned as the list loads
 3. Select a process to see exactly which files it has open on that volume
 4. Activate or quit the responsible app, then eject
 
@@ -77,17 +79,17 @@ No configuration, no API keys, and no third-party dependencies beyond Raycast's 
 | Copy Process ID / Copy All Referenced Paths | Copy details for a bug report or a script |
 | Toggle Details | Collapse or restore the detail sidebar |
 | Refresh Scan | Re-scan after you have closed something |
-| Eject Volume | The same request Finder makes — never a forced unmount |
+| Eject Volume | The same request Finder makes — never a forced unmount. Reported as ejected only once the volume has actually gone |
 
 ---
 
 ## How It Works
 
-The extension shells out to the system `lsof` binary for each mount, parses its field output, and resolves each PID to its application bundle with `ps`. No native helper, no elevated privileges, no third-party packages.
+The extension reads the disk layout from `diskutil list` and the mount flags from `mount`, then shells out to the system `lsof` binary once per volume, covering the volume and every other volume on the same physical disk. It parses `lsof`'s field output and resolves each PID to its application bundle with `ps`. No native helper, no elevated privileges, no third-party packages.
 
 References are ranked by what `lsof` actually reports: a regular file open for writing outranks one open for reading, which outranks a mapped executable or a bare working directory.
 
-Nothing is force-unmounted and no process is ever terminated automatically. `diskutil eject` is used rather than `unmountDisk force`, so a genuine blocker still refuses — which is the point. When it does refuse, macOS Disk Arbitration reports the process responsible, and that is surfaced verbatim.
+Nothing is force-unmounted and no process is ever terminated automatically. `diskutil eject` is used rather than `unmountDisk force`, so a genuine blocker still refuses — which is the point. When it does refuse, macOS Disk Arbitration reports the process responsible, and that is surfaced verbatim. When it succeeds, the mount point is checked before the extension reports success, because an exit status is not proof the volume has gone.
 
 ---
 
@@ -149,6 +151,8 @@ npm run dev
 ## Related Commands
 
 The action panel links out to Raycast's **Eject All Disks** command and the [**Kill Process**](https://www.raycast.com/rolandleth/kill-process) extension, for when you have identified the culprit and want the bigger hammer.
+
+Since [Raycast 2.6.0](https://www.raycast.com/changelog/macos/2-6), Eject All Disks names the disks it could not eject and shows the macOS error. Ejection Seat answers the next question: which process is holding that disk, and what to do about it.
 
 ---
 
