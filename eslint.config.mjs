@@ -1,4 +1,4 @@
-const { defineConfig } = require("eslint/config");
-const raycastConfig = require("@raycast/eslint-config");
+import { defineConfig, globalIgnores } from "eslint/config";
+import raycastConfig from "@raycast/eslint-config";
 
-module.exports = defineConfig([...raycastConfig]);
+export default defineConfig([globalIgnores(["raycast-env.d.ts"]), ...raycastConfig]);
