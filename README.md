@@ -77,7 +77,7 @@ No configuration, no API keys, and no third-party dependencies beyond Raycast's 
 | Quit App | A polite AppleScript quit — the app can still prompt you to save |
 | Show in Finder | Reveal a referenced path |
 | Copy Process ID / Copy All Referenced Paths | Copy details for a bug report or a script |
-| Toggle Details | Collapse or restore the detail sidebar |
+| Hide Sidebar / Show Sidebar | Collapse or restore the detail sidebar (⌘⇧D) — remembered across launches |
 | Refresh Scan | Re-scan after you have closed something |
 | Eject Volume | The same request Finder makes — never a forced unmount. Reported as ejected only once the volume has actually gone |
 

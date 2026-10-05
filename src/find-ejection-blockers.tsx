@@ -14,8 +14,8 @@ import {
   showToast,
   Toast,
 } from "@raycast/api";
-import { usePromise } from "@raycast/utils";
-import { useState } from "react";
+import { useCachedState, usePromise } from "@raycast/utils";
+import { useEffect, useRef, useState } from "react";
 import { execFile } from "node:child_process";
 import { readdir, stat } from "node:fs/promises";
 import { promisify } from "node:util";
@@ -66,6 +66,9 @@ type Scan = {
   volume: Volume;
   blockers: Blocker[];
   error?: string;
+  // performance.now() when the scan began. When a full scan and a single-volume
+  // rescan overlap, the one that STARTED later describes the volume more recently.
+  startedAt: number;
 };
 
 type ExecError = Error & {
@@ -449,14 +452,20 @@ function processAdvice(blocker: Blocker): Advice {
 /* -------------------------------------------------------------------------- */
 
 async function scanVolume(volume: Volume): Promise<Scan> {
+  const startedAt = performance.now();
   try {
-    // A pushed BlockerList keeps the siblings it was opened with, so drop any that
-    // have since been unmounted rather than handing lsof a path that no longer exists.
-    const siblings = await Promise.all(volume.siblings.map((sibling) => isStillMounted(sibling.mountPoint)));
-    const mountPoints = [
-      volume.mountPoint,
-      ...volume.siblings.filter((_, index) => siblings[index]).map((sibling) => sibling.mountPoint),
-    ];
+    // A pushed BlockerList can outlive its volume. Never point lsof at a mount point that
+    // is now just an empty directory on the startup disk.
+    if (!(await isStillMounted(volume.mountPoint))) {
+      return { volume, blockers: [], error: `${volume.name} is no longer mounted.`, startedAt };
+    }
+
+    // The same view keeps the siblings it was opened with, so drop any that have since
+    // been unmounted, and return the list actually scanned.
+    const stillMounted = await Promise.all(volume.siblings.map((sibling) => isStillMounted(sibling.mountPoint)));
+    volume = { ...volume, siblings: volume.siblings.filter((_, index) => stillMounted[index]) };
+
+    const mountPoints = [volume.mountPoint, ...volume.siblings.map((sibling) => sibling.mountPoint)];
     const blockers = parseLsof(await lsof(mountPoints));
     const bundles = await appBundles(blockers.map((blocker) => blocker.pid));
 
@@ -472,9 +481,9 @@ async function scanVolume(volume: Volume): Promise<Scan> {
       return processAdvice(left).title.localeCompare(processAdvice(right).title);
     });
 
-    return { volume, blockers };
+    return { volume, blockers, startedAt };
   } catch (error) {
-    return { volume, blockers: [], error: errorMessage(error) };
+    return { volume, blockers: [], error: errorMessage(error), startedAt };
   }
 }
 
@@ -723,12 +732,14 @@ function BlockerActions({
   volume,
   onRefresh,
   onEjected,
+  isShowingDetail,
   onToggleDetail,
 }: {
   blocker: Blocker;
   volume: Volume;
   onRefresh: () => void;
   onEjected: () => void;
+  isShowingDetail: boolean;
   onToggleDetail: () => void;
 }) {
   const app = blocker.app;
@@ -752,9 +763,9 @@ function BlockerActions({
           onAction={onRefresh}
         />
         <Action
-          title="Toggle Details"
-          icon={Icon.Sidebar}
-          shortcut={{ modifiers: ["cmd", "shift"], key: "enter" }}
+          title={isShowingDetail ? "Hide Sidebar" : "Show Sidebar"}
+          icon={Icon.AppWindowSidebarRight}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "d" }}
           onAction={onToggleDetail}
         />
         <Action.CopyToClipboard
@@ -789,17 +800,44 @@ function BlockerActions({
   );
 }
 
-function BlockerList({ volume, onVolumesChanged }: { volume: Volume; onVolumesChanged: () => void }) {
+// Opens on the very scan the volume list counted, so the two views can never disagree
+// about what was seen. A refresh re-scans this volume and hands the result back up, so
+// the volume list shows it too.
+function BlockerList({
+  initialScan,
+  isStale,
+  onScanned,
+  onVolumesChanged,
+}: {
+  initialScan: Scan;
+  // Opened while the volume list was mid-refresh, so initialScan is the previous scan
+  // and the newer one can never reach this pushed view. Re-scan once on open instead.
+  isStale: boolean;
+  onScanned: (scan: Scan) => void;
+  onVolumesChanged: () => void;
+}) {
   const { pop } = useNavigation();
-  const { data, isLoading, revalidate } = usePromise(scanVolume, [volume]);
-  const [isShowingDetail, setIsShowingDetail] = useState(true);
+  const [scan, setScan] = useState(initialScan);
+  const [isLoading, setIsLoading] = useState(false);
+  const latestRun = useRef(0);
+  const [isShowingDetail, setIsShowingDetail] = useCachedState("show-detail-blockers", true);
 
-  const { blockers, error } = data ?? { blockers: [], error: undefined };
+  const { volume, blockers, error } = scan;
 
-  function onRefresh() {
-    revalidate();
-    onVolumesChanged();
+  async function onRefresh() {
+    const run = ++latestRun.current;
+    setIsLoading(true);
+    // scanVolume never rejects: a failed scan comes back with `error` set.
+    const next = await scanVolume(volume);
+    if (run !== latestRun.current) return;
+    setScan(next);
+    setIsLoading(false);
+    onScanned(next);
   }
+
+  useEffect(() => {
+    if (isStale) onRefresh();
+  }, []);
 
   function onEjected() {
     onVolumesChanged();
@@ -884,6 +922,7 @@ function BlockerList({ volume, onVolumesChanged }: { volume: Volume; onVolumesCh
                     volume={volume}
                     onRefresh={onRefresh}
                     onEjected={onEjected}
+                    isShowingDetail={isShowingDetail}
                     onToggleDetail={() => setIsShowingDetail((showing) => !showing)}
                   />
                 }
@@ -915,7 +954,11 @@ function volumeAccessory(scan: Scan, isLoading: boolean): List.Item.Accessory[] 
   if (scan.error) return [...siblings, { tag: { value: "Scan failed", color: Color.Red } }];
   if (isLoading) return siblings;
 
-  const likely = scan.blockers.filter((blocker) => weightOf(blocker) <= 1).length;
+  // Count with the same sectionFor the blocker list groups by, so a tag here always
+  // names a section the user will find after drilling in.
+  const inSection = (title: string) => scan.blockers.filter((blocker) => sectionFor(blocker) === title);
+
+  const likely = inSection("Likely Blockers").length;
   if (likely > 0) {
     return [
       ...siblings,
@@ -923,7 +966,7 @@ function volumeAccessory(scan: Scan, isLoading: boolean): List.Item.Accessory[] 
     ];
   }
 
-  const others = scan.blockers.length;
+  const others = inSection("Other References").length;
   if (others > 0) {
     return [
       ...siblings,
@@ -931,10 +974,22 @@ function volumeAccessory(scan: Scan, isLoading: boolean): List.Item.Accessory[] 
     ];
   }
 
+  // One kind of service reads by name; a mix reads as the row count the System Services
+  // section header shows.
+  const services = inSection("System Services");
+  const names = new Set(services.map((blocker) => processAdvice(blocker).title));
+  if (services.length > 0) {
+    const value = names.size === 1 ? [...names][0] : `${services.length} system services`;
+    return [...siblings, { tag: { value, color: Color.SecondaryText } }];
+  }
+
   return [...siblings, { tag: { value: "No visible blockers", color: Color.SecondaryText } }];
 }
 
 export default function Command() {
+  // A refresh inside BlockerList re-scans one volume. Show whichever scan of a volume
+  // started last, so a slow full scan that began earlier cannot overwrite it.
+  const [rescans, setRescans] = useState<Record<string, Scan>>({});
   const { data, isLoading, error, revalidate } = usePromise(scanAll);
 
   if (error) {
@@ -949,7 +1004,10 @@ export default function Command() {
     );
   }
 
-  const scans = data ?? [];
+  const scans = (data ?? []).map((scan) => {
+    const rescan = rescans[scan.volume.mountPoint];
+    return rescan && rescan.startedAt > scan.startedAt ? rescan : scan;
+  });
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Select a mounted volume to inspect">
       {!isLoading && scans.length === 0 ? (
@@ -972,7 +1030,14 @@ export default function Command() {
                 <Action.Push
                   title="Find Ejection Blockers"
                   icon={Icon.MagnifyingGlass}
-                  target={<BlockerList volume={scan.volume} onVolumesChanged={revalidate} />}
+                  target={
+                    <BlockerList
+                      initialScan={scan}
+                      isStale={isLoading}
+                      onScanned={(next) => setRescans((current) => ({ ...current, [next.volume.mountPoint]: next }))}
+                      onVolumesChanged={revalidate}
+                    />
+                  }
                 />
                 <Action.ShowInFinder path={scan.volume.mountPoint} />
                 <Action
