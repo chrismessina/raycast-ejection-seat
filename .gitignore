@@ -13,3 +13,6 @@ compiled_raycast_rust
 # misc
 .DS_Store
 .claude
+
+# contributor guide stays in the mirror and never ships (see contributing-template.md)
+CONTRIBUTING.md

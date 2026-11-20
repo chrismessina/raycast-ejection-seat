@@ -11,7 +11,7 @@
 
 **Find out which process is holding your disk hostage — and do something about it.**
 
-[Features](#features) • [Requirements](#requirements) • [Quick Start](#quick-start) • [Usage](#usage) • [How It Works](#how-it-works) • [Limitations](#limitations) • [Development](#development)
+[Features](#features) • [Requirements](#requirements) • [Quick Start](#quick-start) • [Usage](#usage) • [How It Works](#how-it-works) • [Limitations](#limitations)
 
 </div>
 
@@ -103,45 +103,6 @@ Nothing is force-unmounted and no process is ever terminated automatically. `dis
 
 ---
 
-## Development
-
-### Project Structure
-
-```
-raycast-ejection-seat/
-├── src/
-│   ├── find-ejection-blockers.tsx    # The single command
-│   └── disks.ts                      # Pure parsers for mount flags and disk layout
-├── tests/                            # node --test fixtures for disks.ts
-├── assets/                           # Extension icon (runtime)
-├── media/                            # README images
-├── metadata/                         # Store screenshots
-├── package.json
-└── tsconfig.json
-```
-
-### Scripts
-
-| Script | Description |
-| --- | --- |
-| `npm run dev` | Start in development mode with hot reload |
-| `npm run build` | Build for production |
-| `npm run lint` | Run Raycast ESLint config |
-| `npm test` | Run the parser tests (`node --test`, Node 22.18+) |
-| `npm run fix-lint` | Auto-fix lint issues |
-| `npm run publish` | Publish to the Raycast Store |
-
-### Clone & Run
-
-```sh
-git clone https://github.com/chrismessina/raycast-ejection-seat.git
-cd raycast-ejection-seat
-npm install
-npm run dev
-```
-
----
-
 ## Tech Stack
 
 | Package | Role |
@@ -158,5 +119,7 @@ The action panel links out to Raycast's **Eject All Disks** command and the [**K
 Since [Raycast 2.6.0](https://www.raycast.com/changelog/macos/2-6), Eject All Disks names the disks it could not eject and shows the macOS error. Ejection Seat answers the next question: which process is holding that disk, and what to do about it.
 
 ---
+
+Want to contribute? See [CONTRIBUTING.md](https://github.com/chrismessina/raycast-ejection-seat/blob/main/CONTRIBUTING.md).
 
 MIT © [Chris Messina](https://github.com/chrismessina)
